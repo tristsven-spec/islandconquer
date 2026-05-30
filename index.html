@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Island Conquer</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ocean: #1a6b8a;
+    --ocean-light: #2d9cbe;
+    --sand: #f5e6c8;
+    --sand-dark: #e8d4a0;
+    --palm: #2d7a3a;
+    --p1: #e05c3a;
+    --p1-light: #f8c4b4;
+    --p2: #3a6ee0;
+    --p2-light: #b4c8f8;
+    --line-hover: rgba(255,220,80,0.8);
+    --line-drawn-p1: #e05c3a;
+    --line-drawn-p2: #3a6ee0;
+    --grid-dot: #4a9ab5;
+    --cell-size: 52px;
+    --dot-size: 10px;
+    --line-thick: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: linear-gradient(160deg, #0d4f6e 0%, #1a7fa8 50%, #0d3d5a 100%);
+    min-height: 100vh;
+    color: #fff;
+    overflow-x: hidden;
+  }
+  .waves {
+    position: fixed; bottom: 0; left: 0; width: 100%; height: 80px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 80'%3E%3Cpath fill='rgba(255,255,255,0.05)' d='M0,40 C200,0 400,80 600,40 C800,0 1000,80 1200,40 L1200,80 L0,80Z'/%3E%3C/svg%3E") repeat-x bottom;
+    pointer-events: none; z-index: 0;
+  }
+  .container { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 20px; }
+
+  h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.6rem; text-align: center; letter-spacing: 1px;
+    text-shadow: 0 3px 10px rgba(0,0,0,0.4);
+    color: #fff8e0;
+    margin-bottom: 6px;
+  }
+  .subtitle { text-align: center; font-size: 0.95rem; color: rgba(255,255,255,0.65); margin-bottom: 24px; }
+
+  .card {
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+
+  .lobby { max-width: 480px; margin: 0 auto; }
+  .lobby h2 { font-family: 'Fredoka One', cursive; font-size: 1.5rem; margin-bottom: 20px; text-align: center; color: #fff8e0; }
+
+  .input-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+  input[type=text] {
+    flex: 1; padding: 11px 16px; border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15);
+    color: #fff; font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 600;
+    outline: none; transition: border 0.2s;
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  input[type=text]::placeholder { color: rgba(255,255,255,0.4); text-transform: none; letter-spacing: 0; }
+  input[type=text]:focus { border-color: rgba(255,220,80,0.8); }
+
+  .btn {
+    padding: 11px 22px; border-radius: 12px; border: none; cursor: pointer;
+    font-family: 'Fredoka One', cursive; font-size: 1rem; letter-spacing: 0.5px;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary { background: #f5c542; color: #2d3a00; }
+  .btn-primary:hover { background: #ffd54f; }
+  .btn-ocean { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+  .btn-ocean:hover { background: rgba(255,255,255,0.3); }
+  .btn-danger { background: #e05c3a; color: #fff; }
+  .btn-danger:hover { background: #f06a45; }
+
+  .divider { text-align: center; color: rgba(255,255,255,0.4); margin: 14px 0; font-size: 0.85rem; }
+
+  .mode-select { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .mode-btn {
+    padding: 12px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08); color: #fff; cursor: pointer;
+    font-family: 'Fredoka One', cursive; font-size: 0.95rem; text-align: center;
+    transition: all 0.2s;
+  }
+  .mode-btn.active { border-color: #f5c542; background: rgba(245,197,66,0.18); color: #fff8e0; }
+  .mode-btn .mode-icon { font-size: 1.8rem; display: block; margin-bottom: 4px; }
+  .mode-btn small { font-family: 'Nunito', sans-serif; font-size: 0.72rem; opacity: 0.7; font-weight: 600; display: block; }
+
+  .room-code-display {
+    background: rgba(0,0,0,0.25); border-radius: 12px; padding: 14px 20px;
+    text-align: center; margin-bottom: 16px;
+  }
+  .room-code-display .label { font-size: 0.78rem; color: rgba(255,255,255,0.55); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .room-code-display .code { font-family: 'Fredoka One', cursive; font-size: 2.2rem; letter-spacing: 6px; color: #f5c542; }
+
+  .status-bar {
+    display: flex; gap: 12px; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .player-chip {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 50px; font-weight: 700; font-size: 0.9rem;
+    transition: all 0.3s;
+  }
+  .player-chip.p1 { background: rgba(224,92,58,0.25); border: 2px solid #e05c3a; }
+  .player-chip.p2 { background: rgba(58,110,224,0.25); border: 2px solid #3a6ee0; }
+  .player-chip.active { transform: scale(1.06); box-shadow: 0 0 12px rgba(245,197,66,0.5); border-color: #f5c542; }
+  .player-chip .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .player-chip.p1 .dot { background: #e05c3a; }
+  .player-chip.p2 .dot { background: #3a6ee0; }
+  .score { font-family: 'Fredoka One', cursive; font-size: 1.2rem; }
+
+  .turn-banner {
+    text-align: center; padding: 8px 20px; border-radius: 12px;
+    background: rgba(245,197,66,0.2); border: 1px solid rgba(245,197,66,0.4);
+    font-weight: 700; font-size: 0.9rem; color: #fff8e0;
+    flex: 1; min-width: 140px;
+  }
+  .mode-badge {
+    font-size: 0.75rem; background: rgba(255,255,255,0.1); border-radius: 8px;
+    padding: 4px 10px; color: rgba(255,255,255,0.7);
+  }
+
+  .grid-wrap { overflow-x: auto; padding-bottom: 10px; }
+  .grid-container {
+    display: inline-block;
+    position: relative;
+    user-select: none;
+  }
+
+  .grid-svg { display: block; }
+
+  .cell-fill { transition: fill 0.3s; cursor: default; }
+  .cell-text { pointer-events: none; font-family: 'Fredoka One', cursive; font-size: 14px; }
+
+  .h-line, .v-line { cursor: pointer; }
+  .h-line rect, .v-line rect { transition: fill 0.15s, opacity 0.15s; }
+
+  .dot { pointer-events: none; }
+
+  .info-row {
+    display: flex; gap: 10px; align-items: center; justify-content: flex-end;
+    margin-top: 12px; flex-wrap: wrap;
+  }
+
+  .winner-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    animation: fadein 0.4s;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .winner-card {
+    background: linear-gradient(135deg, #1a6b8a, #0d3d5a);
+    border: 2px solid rgba(245,197,66,0.6);
+    border-radius: 24px; padding: 40px 48px; text-align: center;
+    max-width: 380px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .winner-card .trophy { font-size: 4rem; margin-bottom: 12px; }
+  .winner-card h2 { font-family: 'Fredoka One', cursive; font-size: 2rem; margin-bottom: 8px; color: #fff8e0; }
+  .winner-card p { color: rgba(255,255,255,0.7); margin-bottom: 24px; font-size: 0.95rem; }
+  .winner-scores { display: flex; gap: 16px; justify-content: center; margin-bottom: 24px; }
+  .ws { padding: 12px 20px; border-radius: 14px; font-family: 'Fredoka One', cursive; font-size: 1.2rem; }
+  .ws.p1 { background: rgba(224,92,58,0.3); border: 2px solid #e05c3a; }
+  .ws.p2 { background: rgba(58,110,224,0.3); border: 2px solid #3a6ee0; }
+
+  .msg { text-align: center; color: rgba(255,255,255,0.6); font-size: 0.88rem; margin-top: 8px; min-height: 20px; }
+  .msg.error { color: #ff8a7a; }
+  .msg.success { color: #7aff9e; }
+
+  .waiting-pulse {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #f5c542; animation: pulse 1.2s infinite;
+    margin-right: 6px; vertical-align: middle;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+
+  #screen-lobby, #screen-game { display: none; }
+  #screen-lobby.active, #screen-game.active { display: block; }
+
+  .grid-outer { display: flex; justify-content: center; }
+
+  @media (max-width: 600px) {
+    :root { --cell-size: 38px; --dot-size: 8px; --line-thick: 5px; }
+    h1 { font-size: 2rem; }
+    .winner-card { padding: 28px 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="waves"></div>
+<div class="container">
+
+  <h1>🏝️ Island Conquer</h1>
+  <p class="subtitle">Claim islands by completing rectangles on the grid</p>
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="active">
+    <div class="lobby">
+      <div class="card">
+        <h2>Start or Join a Game</h2>
+
+        <div style="margin-bottom:18px;">
+          <div style="font-size:0.82rem;color:rgba(255,255,255,0.6);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Scoring mode</div>
+          <div class="mode-select">
+            <div class="mode-btn active" id="mode-area" onclick="selectMode('area')">
+              <span class="mode-icon">📐</span> Area
+              <small>Points = width × height</small>
+            </div>
+            <div class="mode-btn" id="mode-perim" onclick="selectMode('perimeter')">
+              <span class="mode-icon">📏</span> Perimeter
+              <small>Points = 2×(w+h)</small>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:0.82rem;color:rgba(255,255,255,0.6);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Your name</div>
+        <div class="input-row" style="margin-bottom:18px;">
+          <input type="text" id="playerName" placeholder="Enter your name" maxlength="16" style="text-transform:none;letter-spacing:0;">
+        </div>
+
+        <button class="btn btn-primary" style="width:100%;font-size:1.1rem;padding:14px;" onclick="createGame()">
+          🌊 Create New Game
+        </button>
+
+        <div class="divider">— or join with a room code —</div>
+
+        <div class="input-row">
+          <input type="text" id="joinCode" placeholder="ABCD" maxlength="4">
+          <button class="btn btn-ocean" onclick="joinGame()">Join</button>
+        </div>
+
+        <div class="msg" id="lobby-msg"></div>
+      </div>
+
+      <div style="text-align:center;font-size:0.82rem;color:rgba(255,255,255,0.4);">
+        No account needed · Share your room code with a friend · Works anywhere
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game">
+    <div class="status-bar">
+      <div class="player-chip p1" id="chip-p1">
+        <div class="dot"></div>
+        <span id="name-p1">Player 1</span>
+        <span class="score" id="score-p1">0</span>
+      </div>
+      <div>
+        <div class="turn-banner" id="turn-banner">Waiting…</div>
+        <div class="mode-badge" id="mode-badge">Area mode</div>
+      </div>
+      <div class="player-chip p2" id="chip-p2">
+        <div class="dot"></div>
+        <span id="name-p2">Player 2</span>
+        <span class="score" id="score-p2">0</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:0.82rem;color:rgba(255,255,255,0.5);">
+          Room: <span id="room-display" style="font-family:'Fredoka One',cursive;color:#f5c542;letter-spacing:3px;"></span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ocean" style="padding:6px 14px;font-size:0.82rem;" onclick="copyRoomCode()">📋 Copy Code</button>
+          <button class="btn btn-danger" style="padding:6px 14px;font-size:0.82rem;" onclick="leaveGame()">Leave</button>
+        </div>
+      </div>
+      <div class="grid-outer">
+        <div class="grid-wrap">
+          <div class="grid-container" id="grid-container">
+            <svg id="grid-svg" class="grid-svg"></svg>
+          </div>
+        </div>
+      </div>
+      <div class="msg" id="game-msg" style="margin-top:10px;"></div>
+    </div>
+
+    <div style="text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.4);margin-top:8px;">
+      You are <strong id="your-player-label" style="color:rgba(255,255,255,0.7);">—</strong>
+    </div>
+  </div>
+
+</div>
+
+<!-- Winner overlay -->
+<div class="winner-overlay" id="winner-overlay" style="display:none;">
+  <div class="winner-card">
+    <div class="trophy">🏆</div>
+    <h2 id="winner-title">Player 1 wins!</h2>
+    <p id="winner-sub">The seas have been conquered.</p>
+    <div class="winner-scores">
+      <div class="ws p1"><span id="ws-p1-name">P1</span><br><span id="ws-p1-score">0</span></div>
+      <div class="ws p2"><span id="ws-p2-name">P2</span><br><span id="ws-p2-score">0</span></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;" onclick="backToLobby()">Play Again</button>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+
+<script>
+// ── Firebase config (free Realtime DB, no auth required) ──
+// Using a public demo project. Replace with your own for production use.
+const firebaseConfig = {
+  apiKey: "AIzaSyCqeroKN18agJm5uadkqAXOA1tzKp58UMM",
+    authDomain: "island-conquer-game.firebaseapp.com",
+    databaseURL: "https://island-conquer-game-default-rtdb.firebaseio.com",
+    projectId: "island-conquer-game",
+    storageBucket: "island-conquer-game.firebasestorage.app",
+    messagingSenderId: "616323076687",
+    appId: "1:616323076687:web:2a35df92b949ed3a1c103a"
+};
+
+// ── Game constants ──
+const COLS = 10;  // dots across
+const ROWS = 10;  // dots down
+
+// ── State ──
+let db, gameRef, stateRef;
+let myRole = null; // 'p1' or 'p2'
+let myName = '';
+let currentRoomCode = '';
+let gameMode = 'area';
+let gameState = null;
+let isMyTurn = false;
+let hLines = [], vLines = [], cells = [], scores = [0, 0];
+let svgEl, CS, DS, LT; // cell size, dot size, line thick (from CSS vars)
+let unsubscribe = null;
+
+function getVar(v) {
+  const s = getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  return parseInt(s);
+}
+
+// ── Lobby helpers ──
+function selectMode(m) {
+  gameMode = m;
+  document.getElementById('mode-area').classList.toggle('active', m === 'area');
+  document.getElementById('mode-perim').classList.toggle('active', m === 'perimeter');
+}
+
+function showMsg(el, txt, type) {
+  const e = document.getElementById(el);
+  e.textContent = txt; e.className = 'msg ' + (type || '');
+}
+
+function genCode() {
+  return Array.from({length: 4}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+}
+
+// ── Firebase init ──
+function initFirebase() {
+  if (window._fbInited) return;
+  window._fbInited = true;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  } catch(e) {
+    // Already initialized
+    db = firebase.database();
+  }
+}
+
+// ── Build initial game state ──
+function buildInitialState(mode, p1name) {
+  const h = [];
+  const v = [];
+  const c = [];
+  for (let r = 0; r < ROWS; r++) {
+    h.push(Array(COLS - 1).fill(0));
+  }
+  for (let r = 0; r < ROWS - 1; r++) {
+    v.push(Array(COLS).fill(0));
+  }
+  for (let r = 0; r < ROWS - 1; r++) {
+    c.push(Array(COLS - 1).fill(0));
+  }
+  return {
+    mode,
+    phase: 'waiting', // waiting, playing, done
+    turn: 1, // 1 or 2
+    p1name,
+    p2name: '',
+    scores: [0, 0],
+    hLines: h, // [row][col] = 0|1|2 (0=free,1=p1,2=p2)
+    vLines: v, // [row][col] = 0|1|2
+    cells:  c, // [row][col] = 0|1|2 (0=unclaimed)
+    lastMove: null
+  };
+}
+
+// ── Create game ──
+async function createGame() {
+  const name = document.getElementById('playerName').value.trim() || 'Player 1';
+  myName = name;
+  initFirebase();
+  const code = genCode();
+  currentRoomCode = code;
+  myRole = 'p1';
+  const state = buildInitialState(gameMode, name);
+  try {
+    await db.ref('rooms/' + code).set(state);
+    showMsg('lobby-msg', '', '');
+    enterGameScreen(code, state);
+    listenRoom(code);
+    showMsg('game-msg', '⌛ Waiting for Player 2 to join…', '');
+  } catch(e) {
+    showMsg('lobby-msg', 'Could not connect. Check your internet connection.', 'error');
+  }
+}
+
+// ── Join game ──
+async function joinGame() {
+  const name = document.getElementById('playerName').value.trim() || 'Player 2';
+  const code = document.getElementById('joinCode').value.trim().toUpperCase();
+  if (code.length !== 4) { showMsg('lobby-msg', 'Enter a 4-letter room code', 'error'); return; }
+  myName = name;
+  initFirebase();
+  const snap = await db.ref('rooms/' + code).once('value');
+  if (!snap.exists()) { showMsg('lobby-msg', 'Room not found. Check the code!', 'error'); return; }
+  const state = snap.val();
+  if (state.phase !== 'waiting') { showMsg('lobby-msg', 'That game is already in progress.', 'error'); return; }
+  currentRoomCode = code;
+  myRole = 'p2';
+  await db.ref('rooms/' + code).update({ p2name: name, phase: 'playing' });
+  enterGameScreen(code, state);
+  listenRoom(code);
+}
+
+// ── Enter game screen ──
+function enterGameScreen(code, state) {
+  document.getElementById('screen-lobby').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+  document.getElementById('room-display').textContent = code;
+  document.getElementById('your-player-label').textContent = myRole === 'p1' ? '🔴 Player 1 (Red)' : '🔵 Player 2 (Blue)';
+  buildGrid();
+  applyState(state);
+}
+
+// ── Listen to room ──
+function listenRoom(code) {
+  if (unsubscribe) unsubscribe();
+  const ref = db.ref('rooms/' + code);
+  const cb = ref.on('value', snap => {
+    if (!snap.exists()) return;
+    const s = snap.val();
+    applyState(s);
+  });
+  unsubscribe = () => ref.off('value', cb);
+}
+
+// ── Apply game state to UI ──
+function applyState(s) {
+  gameState = s;
+  document.getElementById('name-p1').textContent = s.p1name || 'Player 1';
+  document.getElementById('name-p2').textContent = s.p2name || 'Waiting…';
+  document.getElementById('score-p1').textContent = (s.scores || [0,0])[0];
+  document.getElementById('score-p2').textContent = (s.scores || [0,0])[1];
+  document.getElementById('mode-badge').textContent = s.mode === 'area' ? '📐 Area mode' : '📏 Perimeter mode';
+
+  const chip1 = document.getElementById('chip-p1');
+  const chip2 = document.getElementById('chip-p2');
+  chip1.classList.toggle('active', s.turn === 1 && s.phase === 'playing');
+  chip2.classList.toggle('active', s.turn === 2 && s.phase === 'playing');
+
+  isMyTurn = s.phase === 'playing' && ((myRole === 'p1' && s.turn === 1) || (myRole === 'p2' && s.turn === 2));
+
+  const banner = document.getElementById('turn-banner');
+  if (s.phase === 'waiting') {
+    banner.innerHTML = '<span class="waiting-pulse"></span> Waiting for opponent…';
+  } else if (s.phase === 'done') {
+    banner.textContent = 'Game over!';
+  } else {
+    if (isMyTurn) {
+      banner.textContent = '✋ Your turn!';
+    } else {
+      const oppName = myRole === 'p1' ? (s.p2name || 'Opponent') : (s.p1name || 'Opponent');
+      banner.innerHTML = `<span class="waiting-pulse"></span> ${oppName}'s turn…`;
+    }
+  }
+
+  // Render lines and cells
+  renderLines(s);
+
+  if (s.phase === 'done') {
+    showWinner(s);
+  }
+}
+
+// ── SVG Grid ──
+const P1C = '#e05c3a', P2C = '#3a6ee0';
+const P1F = 'rgba(224,92,58,0.22)', P2F = 'rgba(58,110,224,0.22)';
+
+function buildGrid() {
+  CS = getVar('--cell-size');
+  DS = getVar('--dot-size');
+  LT = getVar('--line-thick');
+  if (!CS || CS < 10) { CS = 52; DS = 10; LT = 6; }
+
+  const W = (COLS - 1) * CS + DS;
+  const H = (ROWS - 1) * CS + DS;
+  svgEl = document.getElementById('grid-svg');
+  svgEl.setAttribute('width', W);
+  svgEl.setAttribute('height', H);
+  svgEl.innerHTML = '';
+
+  // Cell fills
+  for (let r = 0; r < ROWS - 1; r++) {
+    for (let c = 0; c < COLS - 1; c++) {
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', c * CS + DS / 2);
+      rect.setAttribute('y', r * CS + DS / 2);
+      rect.setAttribute('width', CS - 0);
+      rect.setAttribute('height', CS - 0);
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('class', 'cell-fill');
+      rect.dataset.r = r; rect.dataset.c = c;
+      svgEl.appendChild(rect);
+    }
+  }
+
+  // Cell score text
+  for (let r = 0; r < ROWS - 1; r++) {
+    for (let c = 0; c < COLS - 1; c++) {
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', c * CS + DS / 2 + CS / 2);
+      txt.setAttribute('y', r * CS + DS / 2 + CS / 2 + 5);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('fill', 'rgba(255,255,255,0.9)');
+      txt.setAttribute('class', 'cell-text');
+      txt.setAttribute('font-size', Math.min(CS * 0.3, 15));
+      txt.dataset.r = r; txt.dataset.c = c;
+      txt.textContent = '';
+      svgEl.appendChild(txt);
+    }
+  }
+
+  // Horizontal lines
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS - 1; c++) {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'h-line');
+      g.dataset.r = r; g.dataset.c = c;
+
+      // Hit area
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      hit.setAttribute('x', c * CS + DS);
+      hit.setAttribute('y', r * CS - LT);
+      hit.setAttribute('width', CS - DS);
+      hit.setAttribute('height', LT * 2 + 4);
+      hit.setAttribute('fill', 'transparent');
+
+      // Visible line
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      line.setAttribute('x', c * CS + DS);
+      line.setAttribute('y', r * CS - LT / 2);
+      line.setAttribute('width', CS - DS);
+      line.setAttribute('height', LT);
+      line.setAttribute('rx', LT / 2);
+      line.setAttribute('fill', 'rgba(255,255,255,0.12)');
+      line.setAttribute('class', 'line-visual');
+
+      g.appendChild(line);
+      g.appendChild(hit);
+      g.addEventListener('click', () => claimLine('h', r, c));
+      g.addEventListener('mouseenter', () => hoverLine(g, true, r, c, 'h'));
+      g.addEventListener('mouseleave', () => hoverLine(g, false, r, c, 'h'));
+      svgEl.appendChild(g);
+    }
+  }
+
+  // Vertical lines
+  for (let r = 0; r < ROWS - 1; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'v-line');
+      g.dataset.r = r; g.dataset.c = c;
+
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      hit.setAttribute('x', c * CS - LT);
+      hit.setAttribute('y', r * CS + DS);
+      hit.setAttribute('width', LT * 2 + 4);
+      hit.setAttribute('height', CS - DS);
+      hit.setAttribute('fill', 'transparent');
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      line.setAttribute('x', c * CS - LT / 2);
+      line.setAttribute('y', r * CS + DS);
+      line.setAttribute('width', LT);
+      line.setAttribute('height', CS - DS);
+      line.setAttribute('rx', LT / 2);
+      line.setAttribute('fill', 'rgba(255,255,255,0.12)');
+      line.setAttribute('class', 'line-visual');
+
+      g.appendChild(line);
+      g.appendChild(hit);
+      g.addEventListener('click', () => claimLine('v', r, c));
+      g.addEventListener('mouseenter', () => hoverLine(g, true, r, c, 'v'));
+      g.addEventListener('mouseleave', () => hoverLine(g, false, r, c, 'v'));
+      svgEl.appendChild(g);
+    }
+  }
+
+  // Dots (top layer)
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', c * CS);
+      circle.setAttribute('cy', r * CS);
+      circle.setAttribute('r', DS / 2);
+      circle.setAttribute('fill', '#a8dff0');
+      circle.setAttribute('class', 'dot');
+      svgEl.appendChild(circle);
+    }
+  }
+}
+
+function hoverLine(g, enter, r, c, dir) {
+  if (!isMyTurn) return;
+  const s = gameState;
+  if (!s) return;
+  const drawn = dir === 'h' ? s.hLines[r][c] : s.vLines[r][c];
+  if (drawn) return;
+  const vis = g.querySelector('.line-visual');
+  vis.setAttribute('fill', enter ? 'rgba(245,197,66,0.7)' : 'rgba(255,255,255,0.12)');
+}
+
+function renderLines(s) {
+  if (!svgEl) return;
+  // Horizontal
+  svgEl.querySelectorAll('.h-line').forEach(g => {
+    const r = +g.dataset.r, c = +g.dataset.c;
+    const val = s.hLines && s.hLines[r] ? (s.hLines[r][c] || 0) : 0;
+    const vis = g.querySelector('.line-visual');
+    if (val === 1) vis.setAttribute('fill', P1C);
+    else if (val === 2) vis.setAttribute('fill', P2C);
+    else vis.setAttribute('fill', 'rgba(255,255,255,0.12)');
+    g.style.cursor = (val === 0 && isMyTurn) ? 'pointer' : 'default';
+  });
+  // Vertical
+  svgEl.querySelectorAll('.v-line').forEach(g => {
+    const r = +g.dataset.r, c = +g.dataset.c;
+    const val = s.vLines && s.vLines[r] ? (s.vLines[r][c] || 0) : 0;
+    const vis = g.querySelector('.line-visual');
+    if (val === 1) vis.setAttribute('fill', P1C);
+    else if (val === 2) vis.setAttribute('fill', P2C);
+    else vis.setAttribute('fill', 'rgba(255,255,255,0.12)');
+    g.style.cursor = (val === 0 && isMyTurn) ? 'pointer' : 'default';
+  });
+  // Cells
+  svgEl.querySelectorAll('.cell-fill').forEach(rect => {
+    const r = +rect.dataset.r, c = +rect.dataset.c;
+    const val = s.cells && s.cells[r] ? (s.cells[r][c] || 0) : 0;
+    rect.setAttribute('fill', val === 1 ? P1F : val === 2 ? P2F : 'none');
+  });
+  svgEl.querySelectorAll('.cell-text').forEach(txt => {
+    const r = +txt.dataset.r, c = +txt.dataset.c;
+    const val = s.cells && s.cells[r] ? (s.cells[r][c] || 0) : 0;
+    txt.textContent = '';
+    if (val) {
+      // figure out score for this cell
+      const w = 1, h = 1;
+      const pts = s.mode === 'area' ? (w * h) : (2 * (w + h));
+      txt.textContent = pts;
+    }
+  });
+}
+
+// ── Claim a line ──
+async function claimLine(dir, r, c) {
+  if (!isMyTurn || !gameState || gameState.phase !== 'playing') return;
+  const s = JSON.parse(JSON.stringify(gameState)); // deep copy
+
+  // Check not already drawn
+  const drawn = dir === 'h' ? s.hLines[r][c] : s.vLines[r][c];
+  if (drawn) return;
+
+  const playerNum = myRole === 'p1' ? 1 : 2;
+
+  if (dir === 'h') s.hLines[r][c] = playerNum;
+  else s.vLines[r][c] = playerNum;
+
+  // Check for completed rectangles
+  let completedAny = false;
+  for (let cr = 0; cr < ROWS - 1; cr++) {
+    for (let cc = 0; cc < COLS - 1; cc++) {
+      if (s.cells[cr][cc] !== 0) continue;
+      // top, bottom, left, right
+      const top    = s.hLines[cr][cc];
+      const bottom = s.hLines[cr + 1][cc];
+      const left   = s.vLines[cr][cc];
+      const right  = s.vLines[cr][cc + 1];
+      if (top && bottom && left && right) {
+        s.cells[cr][cc] = playerNum;
+        const pts = s.mode === 'area' ? 1 : 4; // 1×1 cells
+        s.scores[playerNum - 1] += pts;
+        completedAny = true;
+      }
+    }
+  }
+
+  // If completed a cell, same player goes again; otherwise switch
+  if (!completedAny) {
+    s.turn = playerNum === 1 ? 2 : 1;
+  }
+
+  // Check if all cells are claimed
+  const totalCells = (ROWS - 1) * (COLS - 1);
+  const claimedCells = s.cells.flat().filter(v => v > 0).length;
+  if (claimedCells === totalCells) {
+    s.phase = 'done';
+  }
+
+  // Push to Firebase
+  await db.ref('rooms/' + currentRoomCode).set(s);
+}
+
+// ── Winner ──
+function showWinner(s) {
+  const [s1, s2] = s.scores;
+  const p1n = s.p1name || 'Player 1';
+  const p2n = s.p2name || 'Player 2';
+  let title, sub;
+  if (s1 > s2) { title = `${p1n} wins! 🎉`; sub = 'Red claims the seas!'; }
+  else if (s2 > s1) { title = `${p2n} wins! 🎉`; sub = 'Blue claims the seas!'; }
+  else { title = "It's a tie!"; sub = 'Both explorers share the islands.'; }
+  document.getElementById('winner-title').textContent = title;
+  document.getElementById('winner-sub').textContent = sub;
+  document.getElementById('ws-p1-name').textContent = p1n;
+  document.getElementById('ws-p2-name').textContent = p2n;
+  document.getElementById('ws-p1-score').textContent = s1 + ' pts';
+  document.getElementById('ws-p2-score').textContent = s2 + ' pts';
+  document.getElementById('winner-overlay').style.display = 'flex';
+}
+
+function backToLobby() {
+  document.getElementById('winner-overlay').style.display = 'none';
+  leaveGame();
+}
+
+function leaveGame() {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  currentRoomCode = '';
+  myRole = null;
+  gameState = null;
+  document.getElementById('screen-game').classList.remove('active');
+  document.getElementById('screen-lobby').classList.add('active');
+  document.getElementById('winner-overlay').style.display = 'none';
+}
+
+function copyRoomCode() {
+  navigator.clipboard.writeText(currentRoomCode).then(() => {
+    showMsg('game-msg', '✅ Room code copied!', 'success');
+    setTimeout(() => showMsg('game-msg', '', ''), 2000);
+  });
+}
+
+// Enter key on join code
+document.getElementById('joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
+document.getElementById('playerName').addEventListener('keydown', e => { if (e.key === 'Enter') createGame(); });
+</script>
+
+<!-- ╔════════════════════════════════════════════════════════╗
+     ║  SETUP INSTRUCTIONS (remove this comment block        ║
+     ║  before hosting on Google Sites)                       ║
+     ║                                                        ║
+     ║  This game uses Firebase Realtime Database for         ║
+     ║  multiplayer sync. To make it work:                    ║
+     ║                                                        ║
+     ║  1. Go to https://console.firebase.google.com          ║
+     ║  2. Create a free project                              ║
+     ║  3. Enable Realtime Database (start in test mode)      ║
+     ║  4. Copy your config and replace the firebaseConfig    ║
+     ║     object near the top of the <script> section        ║
+     ║  5. Host this file on GitHub Pages or upload to        ║
+     ║     Google Sites as a linked page (not embedded)       ║
+     ║                                                        ║
+     ║  For Google Sites: add a "Button" or "Image" link      ║
+     ║  pointing to your hosted HTML file URL.                ║
+     ╚════════════════════════════════════════════════════════╝ -->
+</body>
+</html>
